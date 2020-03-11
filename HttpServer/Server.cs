@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace HttpServer
 {
-    class Program
+    class Server
     {
         static void Main(string[] args)
         {
