@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace HttpServer
@@ -26,8 +27,9 @@ namespace HttpServer
             // В бесконечном цикле
             while (true)
             {
-                // Принимаем новых клиентов и передаем их на обработку новому экземпляру класса Client
-                new Client(Listener.AcceptTcpClient());
+                // Принимаем новых клиентов. После того, как клиент был принят, он передается в новый поток (ClientThread)
+                // с использованием пула потоков.
+                ThreadPool.QueueUserWorkItem(new WaitCallback(ClientThread), Listener.AcceptTcpClient());
             }
         }
 
@@ -40,6 +42,11 @@ namespace HttpServer
                 // Остановим его
                 Listener.Stop();
             }
+        }
+
+        static void ClientThread(Object StateInfo)
+        {
+            new Client((TcpClient)StateInfo);
         }
 
         static void Main(string[] args)
@@ -59,6 +66,14 @@ namespace HttpServer
             }
 
             Console.WriteLine("Starting server on port {0}...", port);
+
+            // Определим нужное максимальное количество потоков
+            // Пусть будет по 4 на каждый процессор
+            int MaxThreadsCount = Environment.ProcessorCount * 4;
+            // Установим максимальное количество рабочих потоков
+            ThreadPool.SetMaxThreads(MaxThreadsCount, MaxThreadsCount);
+            // Установим минимальное количество рабочих потоков
+            ThreadPool.SetMinThreads(2, 2);
 
             try
             {
