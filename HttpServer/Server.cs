@@ -26,8 +26,8 @@ namespace HttpServer
             // В бесконечном цикле
             while (true)
             {
-                // Принимаем новых клиентов
-                Listener.AcceptTcpClient();
+                // Принимаем новых клиентов и передаем их на обработку новому экземпляру класса Client
+                new Client(Listener.AcceptTcpClient());
             }
         }
 
