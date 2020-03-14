@@ -32,7 +32,7 @@ namespace HttpServer
         }
 
     // Конструктор класса. Ему нужно передавать принятого клиента от TcpListener
-    public Client(TcpClient Client)
+    public Client(TcpClient Client, WebProxy proxy)
     {
         // Объявим строку, в которой будет хранится запрос клиента
             string Request = "";
@@ -85,23 +85,6 @@ namespace HttpServer
             RequestUri = RequestUri.Substring(1);
             Console.WriteLine(RequestUri);
 
-            // Если строка запроса оканчивается на "/", то добавим к ней index.html
-//**            if (RequestUri.EndsWith("/"))
-//**            {
-//**                RequestUri += "index.html";
-//**            }
-//**
-//**            string FilePath = "www/" + RequestUri;
-//**
-//**            // Если в папке www не существует данного файла, посылаем ошибку 404
-//**            if (!File.Exists(FilePath))
-//**            {
-//**                SendError(Client, 404);
-//**                return;
-//**            }
-
-            // Получаем расширение файла из строки запроса
-//**            string Extension = RequestUri.Substring(RequestUri.LastIndexOf('.'));
             string Extension = "";
 
             // Тип содержимого
@@ -140,42 +123,26 @@ namespace HttpServer
                     break;
             }
 
-            // Открываем файл, страхуясь на случай ошибки
-//**            FileStream FS;
-//**            try
-//**            {
-//**                FS = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-//**            }
-//**            catch (Exception)
-//**            {
-//**                // Если случилась ошибка, посылаем клиенту ошибку 500
-//**                SendError(Client, 500);
-//**                return;
-//**            }
+            byte[] data = null;
 
-            WebClient client = new WebClient();
-            var data = client.DownloadData(RequestUri);
+            using (var client = new WebClient())
+            {
+                if (proxy != null)
+                {
+                    client.Proxy = proxy;
+                }
 
-            data = Crypt(data, "123");
+                data = client.DownloadData(RequestUri);
 
-            // Посылаем заголовки
-            string Headers = "HTTP/1.1 200 OK\nContent-Type: " + ContentType + "\nContent-Length: " + data.Length + "\n\n";
-            byte[] HeadersBuffer = Encoding.ASCII.GetBytes(Headers);
-            Client.GetStream().Write(HeadersBuffer, 0, HeadersBuffer.Length);
+                data = Crypt(data, "123");
 
-//**            // Пока не достигнут конец файла
-//**            while (FS.Position < FS.Length)
-//**            {
-//**                // Читаем данные из файла
-//**                Count = FS.Read(Buffer, 0, Buffer.Length);
-//**                // И передаем их клиенту
-//**                Client.GetStream().Write(Buffer, 0, Count);
-//**            }
-//**
-//**            // Закроем файл и соединение
-//**            FS.Close();
+                // Посылаем заголовки
+                string Headers = "HTTP/1.1 200 OK\nContent-Type: " + ContentType + "\nContent-Length: " + data.Length + "\n\n";
+                byte[] HeadersBuffer = Encoding.ASCII.GetBytes(Headers);
+                Client.GetStream().Write(HeadersBuffer, 0, HeadersBuffer.Length);
 
-            Client.GetStream().Write(data, 0, data.Length);
+                Client.GetStream().Write(data, 0, data.Length);
+            }
 
             Client.Close();
         }

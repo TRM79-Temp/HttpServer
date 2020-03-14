@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -11,12 +12,18 @@ namespace HttpServer
 {
     // Based on https://habr.com/ru/post/120157/.
 
+    public class ClientParams
+    {
+        public TcpClient Client { get; set; }
+        public WebProxy Proxy { get; set; }
+    }
+
     class Server
     {
         TcpListener Listener; // Объект, принимающий TCP-клиентов
 
         // Запуск сервера
-        public Server(int Port)
+        public Server(int Port, WebProxy proxy)
         {
             // Создаем "слушателя" для указанного порта
             Listener = new TcpListener(IPAddress.Any, Port);
@@ -29,7 +36,8 @@ namespace HttpServer
             {
                 // Принимаем новых клиентов. После того, как клиент был принят, он передается в новый поток (ClientThread)
                 // с использованием пула потоков.
-                ThreadPool.QueueUserWorkItem(new WaitCallback(ClientThread), Listener.AcceptTcpClient());
+                ThreadPool.QueueUserWorkItem(new WaitCallback(ClientThread),
+                    new ClientParams { Client = Listener.AcceptTcpClient(), Proxy = proxy });
             }
         }
 
@@ -46,7 +54,8 @@ namespace HttpServer
 
         static void ClientThread(Object StateInfo)
         {
-            new Client((TcpClient)StateInfo);
+            var clientParams = (ClientParams)StateInfo;
+            new Client(clientParams.Client, clientParams.Proxy);
         }
 
         static void Main(string[] args)
@@ -75,15 +84,40 @@ namespace HttpServer
             // Установим минимальное количество рабочих потоков
             ThreadPool.SetMinThreads(2, 2);
 
+            var webProxy = GetProxy("proxy.ini");
+
             try
             {
-                new Server(port);
+                new Server(port, webProxy);
             }
             catch (Exception exception)
             {
                 Console.WriteLine("An error occured:");
                 Console.WriteLine(exception.ToString());
                 Console.WriteLine("\nTry to run the program on another port.");
+            }
+        }
+
+        static WebProxy GetProxy(string proxyFileName)
+        {
+            try
+            {
+                using (var reader = new StreamReader(proxyFileName))
+                {
+                    var proxyUrl    = reader.ReadLine();
+                    var login    = reader.ReadLine();
+                    var password = reader.ReadLine();
+
+                    WebProxy proxy = new WebProxy(proxyUrl, true);
+                    proxy.Credentials = new NetworkCredential(login, password);
+                    WebRequest.DefaultWebProxy = proxy;
+
+                    return proxy;
+                }
+            }
+            catch
+            {
+                return null;
             }
         }
 
