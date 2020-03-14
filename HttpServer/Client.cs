@@ -32,7 +32,7 @@ namespace HttpServer
         }
 
     // Конструктор класса. Ему нужно передавать принятого клиента от TcpListener
-    public Client(TcpClient Client, WebProxy proxy)
+    public Client(TcpClient Client, WebProxy proxy, string key)
     {
         // Объявим строку, в которой будет хранится запрос клиента
             string Request = "";
@@ -134,7 +134,7 @@ namespace HttpServer
 
                 data = client.DownloadData(RequestUri);
 
-                data = Crypt(data, "123");
+                data = Crypt(data, key);
 
                 // Посылаем заголовки
                 string Headers = "HTTP/1.1 200 OK\nContent-Type: " + ContentType + "\nContent-Length: " + data.Length + "\n\n";

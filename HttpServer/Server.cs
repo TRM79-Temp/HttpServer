@@ -16,6 +16,7 @@ namespace HttpServer
     {
         public TcpClient Client { get; set; }
         public WebProxy Proxy { get; set; }
+        public string Key { get; set; }
     }
 
     class Server
@@ -23,7 +24,7 @@ namespace HttpServer
         TcpListener Listener; // Объект, принимающий TCP-клиентов
 
         // Запуск сервера
-        public Server(int Port, WebProxy proxy)
+        public Server(int Port, WebProxy proxy, string Key)
         {
             // Создаем "слушателя" для указанного порта
             Listener = new TcpListener(IPAddress.Any, Port);
@@ -37,7 +38,12 @@ namespace HttpServer
                 // Принимаем новых клиентов. После того, как клиент был принят, он передается в новый поток (ClientThread)
                 // с использованием пула потоков.
                 ThreadPool.QueueUserWorkItem(new WaitCallback(ClientThread),
-                    new ClientParams { Client = Listener.AcceptTcpClient(), Proxy = proxy });
+                    new ClientParams {
+                        Client = Listener.AcceptTcpClient(),
+                        Proxy = proxy,
+                        Key = Key
+                    }
+                );
             }
         }
 
@@ -55,13 +61,13 @@ namespace HttpServer
         static void ClientThread(Object StateInfo)
         {
             var clientParams = (ClientParams)StateInfo;
-            new Client(clientParams.Client, clientParams.Proxy);
+            new Client(clientParams.Client, clientParams.Proxy, clientParams.Key);
         }
 
         static void Main(string[] args)
         {
             // Создадим новый сервер на порту 80
-            if (args.Length != 1)
+            if (args.Length == 0)
             {
                 ShowUsage();
                 return;
@@ -86,9 +92,15 @@ namespace HttpServer
 
             var webProxy = GetProxy("proxy.ini");
 
+            var key = String.Empty;
+            if (args.Length > 1)
+            {
+                key = args[1];
+            }
+
             try
             {
-                new Server(port, webProxy);
+                new Server(port, webProxy, key);
             }
             catch (Exception exception)
             {
@@ -124,7 +136,7 @@ namespace HttpServer
         static void ShowUsage()
         {
             Console.WriteLine(@"The program uasge:
-    HttpServer port");
+    HttpServer port [key]");
         }
     }
 }
